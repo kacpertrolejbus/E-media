@@ -5,6 +5,15 @@ import struct
 from PIL import Image, PngImagePlugin
 import zlib
 
+def append_secret_data(file_path, secret_message):
+    # Przekształcanie tekstu na bajty
+    data_to_hide = secret_message.encode('utf-8')
+    
+    with open(file_path, 'ab') as f:
+        f.write(data_to_hide)
+        
+    print(f"Pomyślnie dopisano {len(data_to_hide)} bajtów za końcem pliku {file_path}.")
+
 def convert_jpg_to_png_with_exif_new2(jpg_path, png_path):
     from PIL import Image, PngImagePlugin
 
@@ -392,9 +401,12 @@ def analyze_png_attributes(file_path):
 
             elif chunk_type == 'PLTE':
                 num_colors = chunk_length // 3
-                print(f"Paleta Kolorów (PLTE)")
-                print(f"Liczba kolorów w palecie: {num_colors}")
-                print("PLTE jest obecne.")
+                print(f"Paleta Kolorów (PLTE): {num_colors} kolorów")
+                # Wypisanie max 3 kolorów (można zmienić limit)
+                limit = 3
+                for i in range(min(limit, num_colors)):
+                    r, g, b = chunk_data[i*3:i*3+3]
+                    print(f"  Kolor {i}: RGB({r}, {g}, {b})")
 
             elif chunk_type in ['tEXt', 'zTXt', 'iTXt']:
                 print(f"--- Tekstowy chunk: {chunk_type} ---")
@@ -436,7 +448,14 @@ def analyze_png_attributes(file_path):
 
             elif chunk_type == 'IEND':
                 print(f"[IEND] Znacznik końca pliku.")
+                curr = f.tell()
+                f.seek(0, 2)
+                end = f.tell()
+                if end > curr:
+                    print(f"Uwaga: Znaleziono {end - curr} bajtów za IEND!")
                 break
+            else:
+                print(f"[INNY] Segment: {chunk_type} (Długość: {chunk_length})\n")
 
 def read_value(exif_bytes, endian, typ, count, value):
     import struct
@@ -525,7 +544,6 @@ def parse_ifd(exif_bytes, endian, offset, name="IFD"):
         #print(f"\nTag {i+1}")
         tag_name = EXIF_TAGS.get(tag, f"Unknown ({hex(tag)})")
 
-        #decoded_value = read_value(exif_bytes, endian, typ, count, value)
         decoded_value = read_value(exif_bytes, endian, typ, count, value)
         decoded_value = interpret_value(tag_name, decoded_value)
 
@@ -537,7 +555,7 @@ def parse_ifd(exif_bytes, endian, offset, name="IFD"):
         print(f"Liczba wartości: {count}")
         print(f"Wartość: {decoded_value}")
         print(f"RAW offset/value: {value}")
-        print(f"\nDEBUG -> tag: {hex(tag)}, type: {typ}, count: {count}, value: {value}")
+        #print(f"\nDEBUG -> tag: {hex(tag)}, type: {typ}, count: {count}, value: {value}")
 
         pos += 12
 
@@ -644,7 +662,7 @@ def anonymize_png(input_path, output_path):
     except Exception as e:
         print(f"Wystąpił błąd: {e}")
 
-
+#append_secret_data('path.png', 'To jest tajna wiadomosc ukryta za IEND!')
 analyze_png_attributes('beer.png')
 #fourier_transform('path.png')
 #anonymize_png('path.png', 'path_czysty.png')
